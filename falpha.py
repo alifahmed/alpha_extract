@@ -12,7 +12,7 @@ for line in inp:
 	if(pat_inst.search(line) != None):
 		line = pat_inst.sub("", line)
 		inst = line.split();
-		#inst = line.split(' ', 1)[0]
+		inst = inst[0].split('/');
 		out.write(inst[0] + '\n')
 
 out.close()

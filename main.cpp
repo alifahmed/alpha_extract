@@ -9,160 +9,257 @@
 using namespace std;
 
 typedef enum{
+	T_UNDEF,
 	T_LOAD,
 	T_STORE,
 	T_BR,
-	T_SHIFT,
-	T_IMUL,
-	T_IARITH,
-	T_FARITH,
-	T_FMUL,
-	T_FDIV
+	T_LLATENCY,		//long latency instructions
+	T_IARITH,		//1 cycle latency
+	T_FARITH		//4 cycle latency
 }inst_type1;
 
-/*typedef enum{
-	T_LOAD,
-	T_STORE,
-	T_BR,
-	T_IARITH,
-	T_FARITH
-}inst_type2;*/
+map<string, inst_type1> inst_type1_map;
+map<inst_type1, string> type_name_map;
 
-typedef enum{
-	T_LOAD1,
-	T_LOAD2,
-	T_LOAD3,
-	T_LOAD4,
-	T_STORE1,
-	T_STORE2,
-	T_STORE3,
-	T_BR1,
-	T_BR2,
-	T_BR3,
-	T_ARITH1,
-	T_ARITH2,
-	T_ARITH3,
-	T_ARITH4,
-	T_ARITH5,
-	T_ARITH6,
-	T_ARITH7,
-	T_ARITH8,
-	T_LOGIC1,
-	T_LOGIC2,
-	T_LOGIC3,
-	T_BYTE1,
-	T_FLOAD1,
-	T_FSTORE1,
-	T_FBR1,
-	T_FARITH1,
-	T_FARITH2,
-	T_FARITH3,
-	T_FARITH4,
-	T_UNDEF			
-}inst_type0;
-
-//get type with granularity level 0
-inst_type0 get_type_g0(string inst){
-	switch(inst){
-		//loads
-		case "lda": case "ldah":
-			return T_LOAD1;
-		case "ldbu": case "ldl": case "ldq": case "ldwu":
-			return T_LOAD2;
-		case "ldqu":
-			return T_LOAD3;
-		case "ldll": case "ldql":
-			return T_LOAD4;
-			
-		//stores
-		case "stlc": case "stqc":
-			return T_STORE1;
-		case "stb": case "stl": case "stq": case "stw":
-			return T_STORE2;
-		case "stqu":
-			return T_STORE3;
-			
-		//branches
-		case "beq": case "bge": case "bgt": case "blbc": case "blbs": case "ble": case "blt": case "bne":
-			return T_BR1;
-		case "br": case "bsr":
-			return T_BR2;
-		case "jmp": case "jsr": case "ret": case "jsrc":
-			return T_BR3;
+void init_type1_map(){
+	//init type_name_map
+	type_name_map[T_UNDEF] = "T_UNDEF";
+	type_name_map[T_LOAD] = "T_LOAD";
+	type_name_map[T_STORE] = "T_STORE";
+	type_name_map[T_BR] = "T_BR";
+	type_name_map[T_IARITH] = "T_IARITH";
+	type_name_map[T_FARITH] = "T_FARITH";
+	type_name_map[T_LLATENCY] = "T_LLATENCY";
 		
-		//arithmetic
-		case "addl": case "subl":
-			return T_ARITH1;
-		case "s4addl": case "s8addl": case "s4subl": case "s8subl":
-			return T_ARITH2;
-		case "addq": case "subq":
-			return T_ARITH3;
-		case "s4addq": case "s8addq": case "s4subq": case "s8subq":
-			return T_ARITH4;
-		case "cmpeq": case "cmple": case "cmplt": case "cmpule": case "cmpult":
-			return T_ARITH5;
-		case "cltz": case "ctpop": case "cttz":
-			return T_ARITH6;
-		case "mull":
-			return T_ARITH7;
-		case "mulq": case "umulh":
-			return T_ARITH8;
-			
-		//logical
-		case "and": case "bic": case "bis": case "eqv": case "ornot": case "xor":
-			return T_LOGIC1;
-		case "cmoveq": case "cmovge": case "cmovgt": case "cmovlbc": case "cmovlbs": case "cmovle": case "cmovlt": case "cmovne":
-			return T_LOGIC2;
-		case "sll": case "srl": case "sra":
-			return T_LOGIC3;
-			
-		//byte manipulation
-		case "cmpbge": case "extbl": case "extwl": case "extll": case "extql": case "extwh": case "extlh": case "extqh":
-		case "insbl": case "inswl": case "insll": case "insql": case "inswh": case "inslh": case "insqh": case "zap":
-		case "mskbl": case "mskwl": case "mskll": case "mskql": case "mskwh": case "msklh": case "mskqh": case "sextb":
-		case "sextw": case "zapnot":
-			return T_BYTE1;
-			
-		//floating
-		case "ldf": case "ldg": case "lds": case "ldt":
-			return T_FLOAD1;
-		case "stf": case "stg": case "sts": case "stt":
-			return T_FSTORE1;
-		case "fbeq": case "fbge": case "fbgt": case "fble": case "fblt": case "fbne":
-			return T_FBR1;
-		case "cpys": case "cpyse": case "cpysn": case "cvtlq": case "cvtql": case "mffpcr": case "mtfpcr":
-		case "addf": case "addg": case "adds": case "addt": case "cvtdg": case "cvtgd": case "cvtgf": case "cvtgq":
-		case "cvtqf": case "cvtqg": case "cvtqs": case "cvtqt": case "cvtst": case "cvttq": case "cvtts":
-		case "ftois": case "ftoit": case "itoff": case "itofs": case "itoft":
-		case "fcmoveq": case "fcmovge": case "fcmovgt": case "fcmovle": case "fcmovlt": case "fcmovne":
-		case "cmpgeq": case "cmpgle": case "cmpglt": case "cmpteq": case "cmptle": case "cmptlt": case "cmptun":
-		case "subf": case "subg": case "subs": case "subt":
-			return T_FARITH1;
-		case "divf": case "divg": case "divs": case "divt":
-			return T_FARITH2;
-		case "mulf": case "mulg": case "muls": case "mult":
-			return T_FARITH3;
-		case "sqrtf": case "sqrtg": case "sqrts": case "sqrtt":
-			return T_FARITH4;
-		
-		//not found
-		default:
-			return T_UNDEF;
-	}
+	//loads
+	inst_type1_map["lda"] = T_LOAD;
+	inst_type1_map["ldah"] = T_LOAD;
+	inst_type1_map["ldbu"] = T_LOAD;
+	inst_type1_map["ldl"] = T_LOAD;
+	inst_type1_map["ldq"] = T_LOAD;
+	inst_type1_map["ldq_u"] = T_LOAD;
+	inst_type1_map["ldwu"] = T_LOAD;
+	inst_type1_map["ldl_l"] = T_LOAD;
+	inst_type1_map["ldq_l"] = T_LOAD;
+	inst_type1_map["ldf"] = T_LOAD;
+	inst_type1_map["ldg"] = T_LOAD;
+	inst_type1_map["lds"] = T_LOAD;
+	inst_type1_map["ldt"] = T_LOAD;
+	
+	//stores
+	inst_type1_map["stl_c"] = T_STORE;
+	inst_type1_map["stq_c"] = T_STORE;
+	inst_type1_map["stb"] = T_STORE;
+	inst_type1_map["stl"] = T_STORE;
+	inst_type1_map["stq"] = T_STORE;
+	inst_type1_map["stw"] = T_STORE;
+	inst_type1_map["stq_u"] = T_STORE;
+	inst_type1_map["stf"] = T_STORE;
+	inst_type1_map["stg"] = T_STORE;
+	inst_type1_map["sts"] = T_STORE;
+	inst_type1_map["stt"] = T_STORE;
+	
+	//branches
+	inst_type1_map["beq"] = T_BR;
+	inst_type1_map["bge"] = T_BR;
+	inst_type1_map["bgt"] = T_BR;
+	inst_type1_map["blbc"] = T_BR;
+	inst_type1_map["blbs"] = T_BR;
+	inst_type1_map["ble"] = T_BR;
+	inst_type1_map["blt"] = T_BR;
+	inst_type1_map["bne"] = T_BR;
+	inst_type1_map["br"] = T_BR;
+	inst_type1_map["bsr"] = T_BR;
+	inst_type1_map["jmp"] = T_BR;
+	inst_type1_map["jsr"] = T_BR;
+	inst_type1_map["ret"] = T_BR;
+	inst_type1_map["jsrc"] = T_BR;
+	inst_type1_map["fbeq"] = T_BR;
+	inst_type1_map["fbge"] = T_BR;
+	inst_type1_map["fbgt"] = T_BR;
+	inst_type1_map["fble"] = T_BR;
+	inst_type1_map["fblt"] = T_BR;
+	inst_type1_map["fbne"] = T_BR;
+	
+	//integer arithmetic
+	inst_type1_map["nop"] = T_IARITH;
+	inst_type1_map["unop"] = T_IARITH;
+	inst_type1_map["mov"] = T_IARITH;
+	inst_type1_map["clr"] = T_IARITH;
+	inst_type1_map["halt"] = T_IARITH;
+	inst_type1_map["addl"] = T_IARITH;
+	inst_type1_map["subl"] = T_IARITH;
+	inst_type1_map["s4addl"] = T_IARITH;
+	inst_type1_map["s8addl"] = T_IARITH;
+	inst_type1_map["s4subl"] = T_IARITH;
+	inst_type1_map["s8subl"] = T_IARITH;
+	inst_type1_map["addq"] = T_IARITH;
+	inst_type1_map["subq"] = T_IARITH;
+	inst_type1_map["s4addq"] = T_IARITH;
+	inst_type1_map["s8addq"] = T_IARITH;
+	inst_type1_map["s4subq"] = T_IARITH;
+	inst_type1_map["s8subq"] = T_IARITH;
+	inst_type1_map["cmpeq"] = T_IARITH;
+	inst_type1_map["cmple"] = T_IARITH;
+	inst_type1_map["cmplt"] = T_IARITH;
+	inst_type1_map["cmpule"] = T_IARITH;
+	inst_type1_map["cmpult"] = T_IARITH;
+	inst_type1_map["ctlz"] = T_IARITH;
+	inst_type1_map["ctpop"] = T_IARITH;
+	inst_type1_map["cttz"] = T_IARITH;
+	inst_type1_map["sextl"] = T_IARITH;
+	
+	//integer multiplication
+	inst_type1_map["mull"] = T_LLATENCY;
+	inst_type1_map["mulq"] = T_LLATENCY;
+	inst_type1_map["umulh"] = T_LLATENCY;
+	
+	//logical
+	inst_type1_map["and"] = T_IARITH;
+	inst_type1_map["or"] = T_IARITH;
+	inst_type1_map["andnot"] = T_IARITH;
+	inst_type1_map["not"] = T_IARITH;
+	inst_type1_map["bic"] = T_IARITH;
+	inst_type1_map["bis"] = T_IARITH;
+	inst_type1_map["eqv"] = T_IARITH;
+	inst_type1_map["ornot"] = T_IARITH;
+	inst_type1_map["xor"] = T_IARITH;
+	inst_type1_map["cmoveq"] = T_IARITH;
+	inst_type1_map["cmovge"] = T_IARITH;
+	inst_type1_map["cmovgt"] = T_IARITH;
+	inst_type1_map["cmovlbc"] = T_IARITH;
+	inst_type1_map["cmovlbs"] = T_IARITH;
+	inst_type1_map["cmovle"] = T_IARITH;
+	inst_type1_map["cmovlt"] = T_IARITH;
+	inst_type1_map["cmovne"] = T_IARITH;
+	
+	//shift and byte manipulation
+	inst_type1_map["sll"] = T_IARITH;
+	inst_type1_map["srl"] = T_IARITH;
+	inst_type1_map["sra"] = T_IARITH;
+	inst_type1_map["cmpbge"] = T_IARITH;
+	inst_type1_map["extbl"] = T_IARITH;
+	inst_type1_map["extwl"] = T_IARITH;
+	inst_type1_map["extll"] = T_IARITH;
+	inst_type1_map["extql"] = T_IARITH;
+	inst_type1_map["extwh"] = T_IARITH;
+	inst_type1_map["extlh"] = T_IARITH;
+	inst_type1_map["extqh"] = T_IARITH;
+	inst_type1_map["insbl"] = T_IARITH;
+	inst_type1_map["inswl"] = T_IARITH;
+	inst_type1_map["insll"] = T_IARITH;
+	inst_type1_map["insql"] = T_IARITH;
+	inst_type1_map["inswh"] = T_IARITH;
+	inst_type1_map["inslh"] = T_IARITH;
+	inst_type1_map["insqh"] = T_IARITH;
+	inst_type1_map["zap"] = T_IARITH;
+	inst_type1_map["mskbl"] = T_IARITH;
+	inst_type1_map["mskwl"] = T_IARITH;
+	inst_type1_map["mskll"] = T_IARITH;
+	inst_type1_map["mskql"] = T_IARITH;
+	inst_type1_map["mskwh"] = T_IARITH;
+	inst_type1_map["msklh"] = T_IARITH;
+	inst_type1_map["mskqh"] = T_IARITH;
+	inst_type1_map["sextb"] = T_IARITH;
+	inst_type1_map["sextw"] = T_IARITH;
+	inst_type1_map["zapnot"] = T_IARITH;
+	
+	//floating arithmetic
+	inst_type1_map["fclr"] = T_FARITH;
+	inst_type1_map["fabs"] = T_FARITH;
+	inst_type1_map["fmov"] = T_FARITH;
+	inst_type1_map["fneg"] = T_FARITH;
+	inst_type1_map["fnop"] = T_FARITH;
+	inst_type1_map["cpys"] = T_FARITH;
+	inst_type1_map["cpyse"] = T_FARITH;
+	inst_type1_map["cpysn"] = T_FARITH;
+	inst_type1_map["cvtlq"] = T_FARITH;
+	inst_type1_map["cvtql"] = T_FARITH;
+	inst_type1_map["mf_fpcr"] = T_FARITH;
+	inst_type1_map["mt_fpcr"] = T_FARITH;
+	inst_type1_map["addf"] = T_FARITH;
+	inst_type1_map["addg"] = T_FARITH;
+	inst_type1_map["adds"] = T_FARITH;
+	inst_type1_map["addt"] = T_FARITH;
+	inst_type1_map["cvtdg"] = T_FARITH;
+	inst_type1_map["cvtgd"] = T_FARITH;
+	inst_type1_map["cvtgf"] = T_FARITH;
+	inst_type1_map["cvtgg"] = T_FARITH;
+	inst_type1_map["cvtqf"] = T_FARITH;
+	inst_type1_map["cvtqg"] = T_FARITH;
+	inst_type1_map["cvtqs"] = T_FARITH;
+	inst_type1_map["cvtqt"] = T_FARITH;
+	inst_type1_map["cvtst"] = T_FARITH;
+	inst_type1_map["cvtst"] = T_FARITH;
+	inst_type1_map["cvttq"] = T_FARITH;
+	inst_type1_map["cvttq"] = T_FARITH;
+	inst_type1_map["cvtts"] = T_FARITH;
+	inst_type1_map["ftois"] = T_FARITH;
+	inst_type1_map["ftoit"] = T_FARITH;
+	inst_type1_map["itoff"] = T_FARITH;
+	inst_type1_map["itofs"] = T_FARITH;
+	inst_type1_map["itoft"] = T_FARITH;
+	inst_type1_map["fcmoveq"] = T_FARITH;
+	inst_type1_map["fcmovge"] = T_FARITH;
+	inst_type1_map["fcmovgt"] = T_FARITH;
+	inst_type1_map["fcmovle"] = T_FARITH;
+	inst_type1_map["fcmovlt"] = T_FARITH;
+	inst_type1_map["fcmovne"] = T_FARITH;
+	inst_type1_map["cmpgeq"] = T_FARITH;
+	inst_type1_map["cmpgle"] = T_FARITH;
+	inst_type1_map["cmpglt"] = T_FARITH;
+	inst_type1_map["cmpteq"] = T_FARITH;
+	inst_type1_map["cmptle"] = T_FARITH;
+	inst_type1_map["cmptlt"] = T_FARITH;
+	inst_type1_map["cmptun"] = T_FARITH;
+	inst_type1_map["subf"] = T_FARITH;
+	inst_type1_map["subg"] = T_FARITH;
+	inst_type1_map["subs"] = T_FARITH;
+	inst_type1_map["subt"] = T_FARITH;
+	inst_type1_map["negf"] = T_FARITH;
+	inst_type1_map["negg"] = T_FARITH;
+	inst_type1_map["negs"] = T_FARITH;
+	inst_type1_map["negt"] = T_FARITH;
+	inst_type1_map["negq"] = T_FARITH;
+	inst_type1_map["negl"] = T_FARITH;
+	
+	
+	//floating multiplication
+	inst_type1_map["mulf"] = T_FARITH;
+	inst_type1_map["mulg"] = T_FARITH;
+	inst_type1_map["muls"] = T_FARITH;
+	inst_type1_map["mult"] = T_FARITH;
+	
+	//floating division
+	inst_type1_map["divf"] = T_LLATENCY;
+	inst_type1_map["divg"] = T_LLATENCY;
+	inst_type1_map["divs"] = T_LLATENCY;
+	inst_type1_map["divt"] = T_LLATENCY;
+	
+	//floating sqrt
+	inst_type1_map["sqrtf"] = T_LLATENCY;
+	inst_type1_map["sqrtg"] = T_LLATENCY;
+	inst_type1_map["sqrts"] = T_LLATENCY;
+	inst_type1_map["sqrtt"] = T_LLATENCY;
+	
+	//others - not clear
+	inst_type1_map["wruniq"] = T_LLATENCY;
+	inst_type1_map["rduniq"] = T_LLATENCY;
+	inst_type1_map["imb"] = T_LLATENCY;
+	inst_type1_map["mb"] = T_LLATENCY;
+	inst_type1_map["wmb"] = T_LLATENCY;
+	inst_type1_map["callsys"] = T_LLATENCY;
+	inst_type1_map["wh64"] = T_LLATENCY;
+	inst_type1_map["amask"] = T_LLATENCY;
+	inst_type1_map["excb"] = T_LLATENCY;
+	inst_type1_map["implver"] = T_LLATENCY;
+	inst_type1_map["gentrap"] = T_LLATENCY;
+	inst_type1_map["rpcc"] = T_LLATENCY;
 }
-
-
-class Inst{
-public:
-	string name;
-};
 
 static vector<string> inst_list;
 static map<string, int> hist_all;
-static map<inst_type0, int> hist_g0;
 static map<inst_type1, int> hist_g1;
-//static map<inst_type2, int> hist_g2;
-
 
 void scan(){
 	ifstream in("inst.txt");
@@ -174,6 +271,12 @@ void scan(){
 	inst_list.clear();
 	string inst;
 	while(in >> inst){
+		//check validity
+		if(inst_type1_map.find(inst) == inst_type1_map.end()){
+			printf("Instruction not found: %s", inst.c_str());
+			exit(-1);
+		}
+		
 		inst_list.push_back(inst);
 	}
 }
@@ -185,26 +288,12 @@ void build_hist_all(){
 	}
 }
 
-void build_hist_g0(){
-	hist_g0.clear();
-	for(auto it:inst_list){
-		hist_g0[get_type_g0(it)]++;
-	}
-}
-
-/*void build_hist_g1(){
+void build_hist_g1(){
 	hist_g1.clear();
 	for(auto it:inst_list){
-		hist_g1[it]++;
+		hist_g1[inst_type1_map[it]]++;
 	}
 }
-
-void build_hist_g2(){
-	hist_g2.clear();
-	for(auto it:inst_list){
-		hist_g2[it]++;
-	}
-}*/
 
 void print_inst(){
 	for(auto it:inst_list){
@@ -218,18 +307,17 @@ void print_hist_all(){
 	}
 }
 
-void print_hist_g0(){
-	for(auto it:hist_g0){
-		cout << it.second << endl;
+void print_hist_g1(){
+	for(auto it:hist_g1){
+		cout << type_name_map[it.first] << '\t' << it.second << endl;
 	}
 }
 
 int main(int argc, char** argv){
+	init_type1_map();
 	scan();
-	build_hist_all();
-	print_hist_all();
-	build_hist_g0();
-	print_hist_g0();
-	
+	build_hist_g1();
+	print_hist_g1();
+	cout << "Total inst:\t" << inst_list.size() << endl;
 	return 0;
 }
